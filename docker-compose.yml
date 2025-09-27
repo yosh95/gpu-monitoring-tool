@@ -1,0 +1,54 @@
+services:
+
+  # DCGM Exporter
+  dcgm-exporter:
+    profiles: ['gpu-server']
+    image: nvidia/dcgm-exporter:latest
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    runtime: nvidia
+    privileged: true  # Must be set true for DCGM
+    pid: "host"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    ports:
+      - "9400:9400"  # Port for Prometheus
+
+  # Prometheus
+  prometheus:
+    profiles: ['gpu-server']
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"  # Prometheus Web UI port
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus  # Persistent data
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - dcgm-exporter
+
+  # Grafana
+  grafana:
+    profiles: ['monitor']
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Grafana Web UI port
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana  # Persistent data
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin  # MUST BE CHANGED IN PRODUCTION !
+      - GF_SECURITY_ADMIN_PASSWORD=grafana-user  # MUST BE CHANGED IN PRODUCTION !
+    depends_on:
+      - prometheus
+
+volumes:
+  prometheus_data:
+  grafana_data:
