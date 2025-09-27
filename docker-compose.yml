@@ -44,8 +44,8 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - grafana_data:/var/lib/grafana  # Persistent data
     environment:
-      - GF_SECURITY_ADMIN_USER=admin  # MUST BE CHANGED IN PRODUCTION !
-      - GF_SECURITY_ADMIN_PASSWORD=grafana-user  # MUST BE CHANGED IN PRODUCTION !
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
     depends_on:
       - prometheus
 

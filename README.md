@@ -7,6 +7,7 @@ This setup is designed for easy deployment and is ideal for monitoring single or
 
 ![Grafana Dashboard Screenshot](https://grafana.com/api/dashboards/12239/images/8088/image)
 
+
 *(Image source: Official GrafanaLabs Dashboards Repository)*
 
 ## Features
@@ -14,7 +15,8 @@ This setup is designed for easy deployment and is ideal for monitoring single or
 -   **Detailed GPU Metrics**: Track key metrics like temperature, power usage, GPU and memory utilization, SM clocks, and Tensor Core activity.
 -   **Pre-configured Dashboard**: Includes a ready-to-use Grafana dashboard for immediate visualization.
 -   **Easy Deployment**: Set up the entire stack with a single `docker compose` command.
--   **Flexible Profiles**: Use Docker Compose profiles to deploy components selectively. This allows you to run `dcgm-exporter` on a GPU server and the monitoring components (`prometheus`/`grafana`) on a separate machine.
+-   **Flexible Profiles**: Use Docker Compose profiles to deploy components selectively.
+-   **Secure Credential Management**: Grafana credentials are managed via a `.env` file, which is kept separate from version control.
 
 ## Prerequisites
 
@@ -27,10 +29,12 @@ Before you begin, ensure you have the following installed on your host machine(s
 
 ## Project Structure
 
-Create the following directory structure and files for the project:
+The project is structured as follows. You will create your own `.env` file from the provided example.
 
 ```
 .
+├── .env                  # Your local credentials (created from .env.example, not in Git)
+├── .env.example          # Example credentials file
 ├── docker-compose.yml
 ├── grafana/
 │   ├── dashboards/
@@ -45,6 +49,29 @@ Create the following directory structure and files for the project:
 ```
 
 ### File Contents
+
+<details>
+<summary><code>.env.example</code></summary>
+
+```env
+# Example configuration for Grafana credentials.
+#
+# HOW TO USE:
+# 1. Copy this file to a new file named .env
+#    (e.g., `cp .env.example .env`)
+# 2. Edit the .env file with your actual credentials.
+#
+# The .env file is intentionally not committed to version control (see .gitignore)
+# to keep your secrets secure.
+
+# Default Grafana admin username
+GRAFANA_ADMIN_USER=admin
+
+# --- IMPORTANT ---
+# You MUST change this to a strong and unique password for production environments.
+GRAFANA_ADMIN_PASSWORD=your-strong-and-secret-password
+```
+</details>
 
 <details>
 <summary><code>docker-compose.yml</code></summary>
@@ -96,8 +123,9 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - grafana_data:/var/lib/grafana  # Persistent data
     environment:
-      - GF_SECURITY_ADMIN_USER=admin  # WARNING: Change in production
-      - GF_SECURITY_ADMIN_PASSWORD=grafana-user  # WARNING: Change in production
+      # Reads credentials from the .env file
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
     depends_on:
       - prometheus
 
@@ -108,66 +136,27 @@ volumes:
 ```
 </details>
 
-<details>
-<summary><code>prometheus/prometheus.yml</code></summary>
-
-```yaml
-global:
-  scrape_interval: 5s
-
-scrape_configs:
-  - job_name: 'dcgm-exporter'
-    static_configs:
-      - targets: ['dcgm-exporter:9400']
-```
-</details>
-
-<details>
-<summary><code>grafana/provisioning/datasources/datasource.yml</code></summary>
-
-```yaml
-apiVersion: 1
-
-datasources:
-  - name: Prometheus
-    type: prometheus
-    access: proxy
-    url: http://prometheus:9090
-    isDefault: true
-```
-</details>
-
-<details>
-<summary><code>grafana/provisioning/dashboards/dashboard.yml</code></summary>
-
-```yaml
-apiVersion: 1
-
-providers:
-  - name: 'Default'
-    orgId: 1
-    folder: ''
-    type: file
-    disableDeletion: false
-    editable: true
-    options:
-      path: /var/lib/grafana/dashboards
-```
-</details>
-
-<details>
-<summary><code>grafana/dashboards/nvidia-dcgm-dashboard.json</code></summary>
-
-_Place the large JSON blob you provided for the Grafana dashboard into this file._
-
-</details>
-
+_Other configuration files (Prometheus, Grafana provisioning) are omitted for brevity. Refer to the file tree for their contents._
 
 ## Getting Started
 
-### 1. Clone or Create the Project Files
+### 1. Set Up Your Environment File
 
-Clone this repository or manually create the files and directories as described in the **Project Structure** section above.
+First, create your local environment configuration file from the provided example.
+
+```bash
+cp .env.example .env
+```
+
+Next, open the newly created `.env` file and **change `GRAFANA_ADMIN_PASSWORD` to a strong, secure password.**
+
+```env
+# .env
+# ...
+GRAFANA_ADMIN_PASSWORD=your-new-strong-password
+```
+
+**Note:** The `.env` file should be added to your `.gitignore` file to prevent accidentally committing sensitive information to version control.
 
 ### 2. Launch the Stack
 
@@ -175,7 +164,7 @@ The `docker-compose.yml` is configured with profiles (`gpu-server` and `monitor`
 
 #### Option A: All-in-One Setup (on a single GPU machine)
 
-If you are running everything on a single machine that has GPUs, you can launch all services at once.
+If you are running everything on a single machine with GPUs, launch all services at once.
 
 ```bash
 docker compose up -d
@@ -185,22 +174,16 @@ This will start `dcgm-exporter`, `prometheus`, and `grafana`.
 
 #### Option B: Distributed Setup
 
-If you want to run the monitoring stack on a different server from your GPU machine(s), follow these steps:
+If you wish to run the monitoring stack on a different server from your GPU machine(s):
 
 1.  **On each GPU server:**
-    Run only the `dcgm-exporter` service. Ensure its port `9400` is accessible from your monitoring server.
+    Run only the `dcgm-exporter` service. Ensure port `9400` is accessible from your monitoring server.
     ```bash
     docker compose --profile gpu-server up -d
     ```
 
 2.  **On the monitoring server:**
-    -   Modify `prometheus/prometheus.yml` to point to your GPU server's IP address:
-        ```yaml
-        # prometheus/prometheus.yml
-        # ...
-        static_configs:
-          - targets: ['<your-gpu-server-ip>:9400'] # Add more targets if needed
-        ```
+    -   Modify `prometheus/prometheus.yml` to point to your GPU server's IP address.
     -   Launch the monitoring services:
         ```bash
         docker compose --profile monitor up -d
@@ -209,8 +192,7 @@ If you want to run the monitoring stack on a different server from your GPU mach
 ### 3. Access the Services
 
 -   **Grafana**: Open your browser and navigate to `http://<your-server-ip>:3000`.
-    -   Default username: `admin`
-    -   Default password: `grafana-user`
+    -   Log in with the credentials you configured in your `.env` file.
     -   The NVIDIA DCGM Exporter dashboard will be pre-installed and available on the home page.
 
 -   **Prometheus**: Access the web UI at `http://<your-server-ip>:9090`.
@@ -220,20 +202,16 @@ If you want to run the monitoring stack on a different server from your GPU mach
 
 ### Grafana Credentials
 
-**It is strongly recommended to change the default Grafana admin password.** You can do this by modifying the environment variables in `docker-compose.yml` before the first launch:
+To change the Grafana admin username or password, simply edit the `.env` file and restart the Grafana container for the changes to take effect:
 
-```yaml
-# docker-compose.yml
-# ...
-  grafana:
-    environment:
-      - GF_SECURITY_ADMIN_USER=your_new_user
-      - GF_SECURITY_ADMIN_PASSWORD=your_strong_password
+```bash
+# After modifying .env
+docker compose restart grafana
 ```
 
 ### Monitoring Multiple GPU Servers
 
-To monitor multiple GPU servers, deploy the `dcgm-exporter` on each one (using `docker compose --profile gpu-server up -d`) and add their IP addresses to the `targets` list in `prometheus/prometheus.yml`:
+To monitor multiple GPU servers, deploy the `dcgm-exporter` on each one and add their IP addresses to the `targets` list in `prometheus/prometheus.yml`.
 
 ```yaml
 # prometheus/prometheus.yml
@@ -250,13 +228,13 @@ After updating the configuration, restart Prometheus: `docker compose restart pr
 
 ## Stopping the Stack
 
-To stop and remove all the containers, run:
+To stop and remove all the containers:
 
 ```bash
 docker compose down
 ```
 
-To preserve the data stored in volumes (Prometheus metrics, Grafana settings), omit the `-v` flag. To remove the data as well, use:
+To also remove the data volumes (Prometheus metrics, Grafana settings), use the `-v` flag:
 
 ```bash
 docker compose down -v
