@@ -5,9 +5,9 @@ This project provides a complete, containerized monitoring stack for NVIDIA GPUs
 This setup is designed for easy deployment and is ideal for monitoring single or multiple GPU-enabled servers.
 
 
-![Grafana Dashboard Screenshot](https://raw.githubusercontent.com/NVIDIA/dcgm-exporter/master/grafana/grafana.png)
+![Grafana Dashboard Screenshot](https://grafana.com/api/dashboards/12239/images/8088/image)
 
-*(Image source: Official NVIDIA DCGM Exporter repository)*
+*(Image source: Official GrafanaLabs Dashboards Repository)*
 
 ## Features
 
