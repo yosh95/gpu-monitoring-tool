@@ -17,7 +17,7 @@ services:
 
   # Prometheus
   prometheus:
-    profiles: ['gpu-server']
+    profiles: ['monitor']
     image: prom/prometheus:latest
     container_name: prometheus
     restart: unless-stopped
@@ -28,8 +28,6 @@ services:
       - prometheus_data:/prometheus  # Persistent data
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
-    depends_on:
-      - dcgm-exporter
 
   # Grafana
   grafana:
