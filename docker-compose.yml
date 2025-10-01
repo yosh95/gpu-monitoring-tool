@@ -29,6 +29,24 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
 
+  # Grafana
+  grafana:
+    profiles: ['monitor']
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Grafana Web UI port
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana  # Persistent data
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    depends_on:
+      - prometheus
+
 volumes:
   prometheus_data:
-  perses_data:
+  grafana_data:
